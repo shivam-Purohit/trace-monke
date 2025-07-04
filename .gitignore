@@ -1,0 +1,11 @@
+__pycache__
+venv/
+resume_shivam.pdf
+/backend/__pycache__
+*env
+frontend-app/node_modules/
+frontend-app/.env
+__pycache__/
+backend/proto_gen
+backend/.env
+opentelemetry-proto/
