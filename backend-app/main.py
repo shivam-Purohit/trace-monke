@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 import json
 from bson import json_util
 import time
@@ -14,7 +14,9 @@ from proto_gen.proto_otel.proto.trace.v1.trace_pb2 import Span
 from connectdb import db
 from utils import _any_value_to_str
 from filter_trace import filter_llm_traces
-
+from schema import userSignInRequest, userSignUpRequest
+from auth import sign_up, sign_in
+from auth import authenticate_jwt
 
 from deepeval.metrics import AnswerRelevancyMetric
 from deepeval.test_case import LLMTestCase
@@ -36,13 +38,17 @@ def main_route(request: Request):
 span_store = []
     
 @app.get("/show_traces/")
-def retrieve_traces():
+@authenticate_jwt
+def retrieve_traces(request: Request, response: Response ):
+    print(request.cookies)
     my_trace_collection = db["trace_collection"]
     cursor = my_trace_collection.find()
     result = []
     for doc in cursor:
         doc["_id"] = str(doc["_id"]) 
         result.append(doc)
+    print("we are out of wrapper")
+    # print(type(response))
     return result
 
 
@@ -105,3 +111,30 @@ def evaluate_result():
         # print(test_case)
     
     return answer_result
+
+@app.post("/auth/signin")
+def user_sign_in(req : userSignInRequest, response: Response):
+    useremail = req.email
+    password = req.password
+    try:
+        get_response = sign_in(useremail, password, db)
+    except Exception as e:
+        print(e)
+        return e
+    token = get_response["token"]
+    print(response.set_cookie(key="jwt_token", value=token))
+    return {"User signed in successfully"}
+
+@app.post("/auth/signup")
+def user_sign_up(req : userSignUpRequest):
+    username = req.username
+    useremail = req.email
+    password = req.password
+
+    response = sign_up(username, useremail, password, db)
+    print(response)
+    print("user is " + useremail + " password is "+ password)
+    return JSONResponse(status_code = 200, content={
+        "username": useremail,
+        "password": password
+    })
